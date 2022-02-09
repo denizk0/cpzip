@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Publish cpzip to folder (macos)" type="DotNetFolderPublish" factoryName="Publish to folder">
-    <riderPublish configuration="Release" delete_existing_files="true" platform="Any CPU" produce_single_file="true" runtime="osx-x64" self_contained="true" target_folder="$PROJECT_DIR$/bin/Release/net6.0/publish/osx" target_framework="net6.0" trim_unused_assemblies="true" uuid_high="-2825938399448185163" uuid_low="-6147508836670704102" />
+  <configuration default="false" name="Publish cpzip to folder (macos x64)" type="DotNetFolderPublish" factoryName="Publish to folder">
+    <riderPublish configuration="Release" delete_existing_files="true" platform="Any CPU" produce_single_file="true" runtime="osx-x64" self_contained="true" target_folder="$PROJECT_DIR$/bin/Release/net6.0/publish/osx-x64" target_framework="net6.0" trim_unused_assemblies="true" uuid_high="-2825938399448185163" uuid_low="-6147508836670704102" />
     <method v="2" />
   </configuration>
 </component>
