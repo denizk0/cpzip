@@ -17,3 +17,7 @@ Example:
     cpzip my_photo.png my_photos.zip christmas/this_year.zip/new
 
 will copy `my_photo.png` to the folder `new` of the nested file `this_year.zip` updating `my_photos.zip` accordingly.
+
+May be useful for developers for quick updating libs in the uber-jar file:
+
+    cpzip ~/.m2/repository/joda-time/joda-time/2.9.9/joda-time-2.9.9.jar camunda-bpm-run-7.16.0.zip internal/camunda-bpm-run-core.jar/BOOT-INF/lib -v
