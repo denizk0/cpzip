@@ -1,7 +1,8 @@
-﻿using System.IO.Compression;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using CommandLine;
 using cpzip;
+using ICSharpCode.SharpZipLib.Core;
+using ICSharpCode.SharpZipLib.Zip;
 
 const string zipSeparator = "/";
 
@@ -67,10 +68,11 @@ return parserResult.MapResult(o =>
 
 void Process(string zipFilePath, string targetPath)
 {
-    using var zipArchive = ZipFile.Open(zipFilePath, ZipArchiveMode.Update);
+    using var zipArchive = new ZipFile(zipFilePath);
 
     var zipPath = string.Empty;
-    ZipArchiveEntry zipEntry = null;
+
+    ZipEntry zipEntry = null;
 
     foreach (var path in targetPath.Split(zipSeparator, StringSplitOptions.RemoveEmptyEntries))
     {
@@ -86,7 +88,8 @@ void Process(string zipFilePath, string targetPath)
             // not a directory
             if (zipEntry == null)
             {
-                throw new FileNotFoundException($"Entry {zipFilePath}{zipSeparator}{zipPath} not found. Check target path.");
+                throw new FileNotFoundException(
+                    $"Entry {zipFilePath}{zipSeparator}{zipPath} not found. Check target path.");
             }
         }
         // it's a file
@@ -95,20 +98,24 @@ void Process(string zipFilePath, string targetPath)
             var tempFileName = Path.GetTempFileName();
             try
             {
-                Log($"Processing nested zip {zipPath}...");
+                Log($"Processing nested zip {zipPath}:");
                 Log($"Extracting nested zip {zipFilePath}{zipSeparator}{zipPath} to {tempFileName}...");
-                zipEntry.ExtractToFile(tempFileName, true);
+                ExtractToFile(zipArchive, zipEntry, tempFileName);
 
-                // trim processed path
                 var remainingPath = new Regex(Regex.Escape(zipPath)).Replace(targetPath, string.Empty, 1);
-
                 Process(tempFileName, remainingPath);
 
                 Log($"Deleting existing nested entry {zipFilePath}{zipSeparator}{zipEntry}...");
-                zipEntry.Delete();
 
+                var compressionMethod = zipEntry.CompressionMethod;
+                zipArchive.BeginUpdate();
+
+                zipArchive.Delete(zipEntry);
                 Log($"Creating nested entry {zipFilePath}{zipSeparator}{zipPath} from {tempFileName}...");
-                zipArchive.CreateEntryFromFile(tempFileName, zipPath, CompressionLevel.NoCompression);
+
+                zipArchive.NameTransform = new SingleNameTransform(zipPath);
+                zipArchive.Add(tempFileName, compressionMethod);
+                zipArchive.CommitUpdate();
 
                 return;
             }
@@ -120,8 +127,11 @@ void Process(string zipFilePath, string targetPath)
         }
     }
 
-    var entryName = (zipEntry?.FullName ?? string.Empty) + sourceFile.Name;
+    var entryName = (zipEntry?.Name ?? string.Empty) + sourceFile.Name;
     var entry = zipArchive.GetEntry(entryName);
+
+    CompressionMethod? method = null;
+
     if (entry != null)
     {
         if (noOverwrite)
@@ -129,21 +139,69 @@ void Process(string zipFilePath, string targetPath)
             throw new ApplicationException($"Entry {entryName} already exists.");
         }
 
-        entry.Delete();
+        method = entry.CompressionMethod;
+        zipArchive.BeginUpdate();
+        zipArchive.Delete(entry);
+
         Log($"Deleting existing entry {zipFilePath}{zipSeparator}{entry}...");
     }
 
     Log($"Creating entry {zipFilePath}{zipSeparator}{entryName}...");
 
-    try
+    if (method == null)
     {
-        using var testArchive = ZipFile.Open(sourceFile.FullName, ZipArchiveMode.Read);
+        try
+        {
+            using var testArchive = new ZipFile(sourceFile.FullName);
+            Log("Zip file detected, adding without compression.");
+            method = CompressionMethod.Stored;
+        }
+        catch (Exception)
+        {
+            // set stored method for archived files
+        }
     }
-    catch (Exception)
+
+    if (!zipArchive.IsUpdating)
     {
-        zipArchive.CreateEntryFromFile(sourceFile.FullName, entryName);
+        zipArchive.BeginUpdate();
     }
-    
-    Log("Zip file detected, adding without compression.");
-    zipArchive.CreateEntryFromFile(sourceFile.FullName, entryName, CompressionLevel.NoCompression);
+
+    zipArchive.NameTransform = new SingleNameTransform(entryName);
+
+    if (method == null)
+    {
+        zipArchive.Add(sourceFile.FullName);
+    }
+    else
+    {
+        zipArchive.Add(sourceFile.FullName, method.Value);
+    }
+
+    zipArchive.CommitUpdate();
+    Log("Done.");
 }
+
+#region Helpers
+
+static void ExtractToFile(ZipFile zipFile, ZipEntry entry, string fileName)
+{
+    using var inputStream = zipFile.GetInputStream(entry);
+    using var outputStream = File.OpenWrite(fileName);
+    inputStream.CopyTo(outputStream);
+}
+
+internal class SingleNameTransform : INameTransform
+{
+    private readonly string _name;
+
+    public SingleNameTransform(string name)
+    {
+        _name = name;
+    }
+
+    public string TransformFile(string name) => _name;
+    
+    public string TransformDirectory(string name) => _name;
+}
+#endregion

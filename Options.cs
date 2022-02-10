@@ -14,7 +14,7 @@ internal class Options
     [Value(1, Required = true, HelpText = "Target file to copy to.", MetaName = "target_file")]
     public string TargetFile { get; set; }
 
-    [Value(2, Required = true, HelpText = "Path within the target file. Use '/' as a separator.", MetaName = "target_path")]
+    [Value(2, Required = true, HelpText = "Path within the target file. Use '/' as a separator as a separator or as a root path.", MetaName = "target_path")]
     public string TargetFilePath { get; set; }
 
     [Option('n', "no-overwrite", Required = false, HelpText = "Do not overwrite existing files.")]

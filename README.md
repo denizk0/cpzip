@@ -10,7 +10,7 @@ Copies file to the target zip archive, with nested archives support.
     --version               Display version information.
     source_file (pos. 0)    Required. Source file to copy.
     target_file (pos. 1)    Required. Target file to copy to.
-    target_path (pos. 2)    Required. Path within the target file. Use '/' as a separator.
+    target_path (pos. 2)    Required. Path within the target file. Use '/' as a separator or as a root path.
 
 Example:
 

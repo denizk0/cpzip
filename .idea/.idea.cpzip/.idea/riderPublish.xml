@@ -4,6 +4,10 @@
     <option name="locations">
       <list>
         <option value="$PROJECT_DIR$/bin/Release/net6.0/publish" />
+        <option value="$PROJECT_DIR$/bin/Release/net6.0/publish/osx-x64" />
+        <option value="$PROJECT_DIR$/bin/Release/net6.0/publish/linux" />
+        <option value="$PROJECT_DIR$/bin/Release/net6.0/publish/windows" />
+        <option value="$PROJECT_DIR$/bin/Release/net6.0/publish/osx-arm64" />
       </list>
     </option>
   </component>
