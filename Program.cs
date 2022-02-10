@@ -108,7 +108,7 @@ void Process(string zipFilePath, string targetPath)
                 zipEntry.Delete();
 
                 Log($"Creating nested entry {zipFilePath}{zipSeparator}{zipPath} from {tempFileName}...");
-                zipArchive.CreateEntryFromFile(tempFileName, zipPath);
+                zipArchive.CreateEntryFromFile(tempFileName, zipPath, CompressionLevel.NoCompression);
 
                 return;
             }
@@ -134,5 +134,16 @@ void Process(string zipFilePath, string targetPath)
     }
 
     Log($"Creating entry {zipFilePath}{zipSeparator}{entryName}...");
-    zipArchive.CreateEntryFromFile(sourceFile.FullName, entryName);
+
+    try
+    {
+        using var testArchive = ZipFile.Open(sourceFile.FullName, ZipArchiveMode.Read);
+    }
+    catch (Exception)
+    {
+        zipArchive.CreateEntryFromFile(sourceFile.FullName, entryName);
+    }
+    
+    Log("Zip file detected, adding without compression.");
+    zipArchive.CreateEntryFromFile(sourceFile.FullName, entryName, CompressionLevel.NoCompression);
 }
