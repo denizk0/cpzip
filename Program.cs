@@ -42,8 +42,7 @@ return parserResult.MapResult(o =>
                 }
                 catch (Exception e)
                 {
-                    LogError(
-                        $"{Path.GetFileName(sourceFile)} -> {Path.GetFileName(targetFile)}{zipEntrySeparator}{options.TargetFilePath}: {e.Message}");
+                    LogError(e.Message);
                 }
             }
         }
@@ -52,7 +51,7 @@ return parserResult.MapResult(o =>
     }
     catch (Exception e)
     {
-        LogError(e.Message);
+        LogError($"{options.SourceFile} -> {Path.GetFileName(options.TargetFile)}{zipEntrySeparator}{options.TargetFilePath}: {e.Message}");
         return e.HResult != 0 ? 1 : e.HResult;
     }
     finally
