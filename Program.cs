@@ -4,18 +4,17 @@ using cpzip;
 using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.Zip;
 
-const string zipEntrySeparator =  "/";
+const string zipEntrySeparator = "/";
 var indent = 0;
 Options options;
 
 #region Logging
 
-
 void Log(object message)
 {
     if (options.Verbose)
     {
-        Console.WriteLine(new string('\t', indent) + message);
+        Console.WriteLine(new string('\t', indent < 0 ? 0 : indent) + message);
     }
 }
 
@@ -43,11 +42,12 @@ return parserResult.MapResult(o =>
                 }
                 catch (Exception e)
                 {
-                    LogError($"{Path.GetFileName(sourceFile)} -> {Path.GetFileName(targetFile)}{zipEntrySeparator}{options.TargetFilePath}: {e.Message}");
+                    LogError(
+                        $"{Path.GetFileName(sourceFile)} -> {Path.GetFileName(targetFile)}{zipEntrySeparator}{options.TargetFilePath}: {e.Message}");
                 }
             }
         }
-        
+
         return 0;
     }
     catch (Exception e)
@@ -57,7 +57,7 @@ return parserResult.MapResult(o =>
     }
     finally
     {
-        indent = 0;        
+        indent = 0;
         Log("Done.");
     }
 }, _ =>
@@ -71,9 +71,9 @@ return parserResult.MapResult(o =>
 void Process(string sourceFileName, string zipFileName, string targetZipPath)
 {
     Log($"{Path.GetFileName(sourceFileName)} -> {Path.GetFileName(zipFileName)}{zipEntrySeparator}{targetZipPath}:");
-    
+
     indent++;
-    
+
     using var zipArchive = new ZipFile(zipFileName);
 
     var zipPath = string.Empty;
@@ -208,7 +208,7 @@ static IEnumerable<string> ResolveFileNames(string filePattern)
     {
         directory = Directory.GetCurrentDirectory();
     }
-    
+
     var directoryInfo = new DirectoryInfo(directory);
     if (!directoryInfo.Exists)
     {
@@ -236,7 +236,8 @@ internal class SingleNameTransform : INameTransform
     }
 
     public string TransformFile(string name) => _name;
-    
+
     public string TransformDirectory(string name) => _name;
 }
+
 #endregion
