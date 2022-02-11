@@ -6,7 +6,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
         <Company>Denis Ganachkov</Company>
-        <Description>111111</Description>
+        <Description>CLI tool for adding/updating files in nested zip archives</Description>
+        <AssemblyVersion>0.3</AssemblyVersion>
+        <FileVersion>0.3</FileVersion>
     </PropertyGroup>
 
     <ItemGroup>
