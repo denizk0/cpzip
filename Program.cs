@@ -4,17 +4,18 @@ using cpzip;
 using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.Zip;
 
-const string zipSeparator = "/";
+const string zipEntrySeparator =  "/";
+var indent = 0;
+Options options;
 
 #region Logging
 
-bool verbose;
 
 void Log(object message)
 {
-    if (verbose)
+    if (options.Verbose)
     {
-        Console.WriteLine(message?.ToString());
+        Console.WriteLine(new string('\t', indent) + message);
     }
 }
 
@@ -24,39 +25,40 @@ void LogError(object message) => Console.Error.WriteLine($"ERROR: {message}");
 
 #region Command line processing
 
-FileInfo sourceFile, targetFile;
-bool noOverwrite;
-
 var parser = new Parser(with => with.HelpWriter = null);
 var parserResult = parser.ParseArguments<Options>(args);
 
 return parserResult.MapResult(o =>
 {
+    options = o;
     try
     {
-        sourceFile = new FileInfo(o.SourceFile);
-        targetFile = new FileInfo(o.TargetFile);
-
-        if (!sourceFile.Exists)
+        foreach (var targetFile in ResolveFileNames(options.TargetFile))
         {
-            throw new FileNotFoundException($"Source file not found: {sourceFile.FullName}.", o.SourceFile);
+            foreach (var sourceFile in ResolveFileNames(options.SourceFile))
+            {
+                try
+                {
+                    Process(sourceFile, targetFile, options.TargetFilePath);
+                }
+                catch (Exception e)
+                {
+                    LogError($"{Path.GetFileName(sourceFile)} -> {Path.GetFileName(targetFile)}{zipEntrySeparator}{options.TargetFilePath}: {e.Message}");
+                }
+            }
         }
-
-        if (!targetFile.Exists)
-        {
-            throw new FileNotFoundException($"Target file not found: {targetFile.FullName}.", o.TargetFile);
-        }
-
-        noOverwrite = o.NoOverwrite;
-        verbose = o.Verbose;
-
-        Process(targetFile.FullName, o.TargetFilePath);
+        
         return 0;
     }
     catch (Exception e)
     {
         LogError(e.Message);
         return e.HResult != 0 ? 1 : e.HResult;
+    }
+    finally
+    {
+        indent = 0;        
+        Log("Done.");
     }
 }, _ =>
 {
@@ -66,15 +68,19 @@ return parserResult.MapResult(o =>
 
 #endregion
 
-void Process(string zipFilePath, string targetPath)
+void Process(string sourceFileName, string zipFileName, string targetZipPath)
 {
-    using var zipArchive = new ZipFile(zipFilePath);
+    Log($"{Path.GetFileName(sourceFileName)} -> {Path.GetFileName(zipFileName)}{zipEntrySeparator}{targetZipPath}:");
+    
+    indent++;
+    
+    using var zipArchive = new ZipFile(zipFileName);
 
     var zipPath = string.Empty;
 
     ZipEntry zipEntry = null;
 
-    foreach (var path in targetPath.Split(zipSeparator, StringSplitOptions.RemoveEmptyEntries))
+    foreach (var path in targetZipPath.Split(zipEntrySeparator, StringSplitOptions.RemoveEmptyEntries))
     {
         zipPath += path;
         zipEntry = zipArchive.GetEntry(zipPath);
@@ -82,14 +88,14 @@ void Process(string zipFilePath, string targetPath)
         // not a file
         if (zipEntry == null)
         {
-            zipPath += zipSeparator;
+            zipPath += zipEntrySeparator;
             zipEntry = zipArchive.GetEntry(zipPath);
 
             // not a directory
             if (zipEntry == null)
             {
                 throw new FileNotFoundException(
-                    $"Entry {zipFilePath}{zipSeparator}{zipPath} not found. Check target path.");
+                    $"Entry {zipFileName}{zipEntrySeparator}{zipPath} not found. Check target path.");
             }
         }
         // it's a file
@@ -99,19 +105,19 @@ void Process(string zipFilePath, string targetPath)
             try
             {
                 Log($"Processing nested zip {zipPath}:");
-                Log($"Extracting nested zip {zipFilePath}{zipSeparator}{zipPath} to {tempFileName}...");
+                Log($"Extracting nested zip {zipFileName}{zipEntrySeparator}{zipPath} to {tempFileName}...");
                 ExtractToFile(zipArchive, zipEntry, tempFileName);
 
-                var remainingPath = new Regex(Regex.Escape(zipPath)).Replace(targetPath, string.Empty, 1);
-                Process(tempFileName, remainingPath);
+                var remainingPath = new Regex(Regex.Escape(zipPath)).Replace(targetZipPath, string.Empty, 1);
+                Process(sourceFileName, tempFileName, remainingPath);
 
-                Log($"Deleting existing nested entry {zipFilePath}{zipSeparator}{zipEntry}...");
+                Log($"Deleting existing nested entry {zipFileName}{zipEntrySeparator}{zipEntry}...");
 
                 var compressionMethod = zipEntry.CompressionMethod;
                 zipArchive.BeginUpdate();
 
                 zipArchive.Delete(zipEntry);
-                Log($"Creating nested entry {zipFilePath}{zipSeparator}{zipPath} from {tempFileName}...");
+                Log($"Creating nested entry {zipFileName}{zipEntrySeparator}{zipPath} from {tempFileName}...");
 
                 zipArchive.NameTransform = new SingleNameTransform(zipPath);
                 zipArchive.Add(tempFileName, compressionMethod);
@@ -121,20 +127,21 @@ void Process(string zipFilePath, string targetPath)
             }
             finally
             {
+                indent--;
                 Log($"Deleting {tempFileName}...");
                 File.Delete(tempFileName);
             }
         }
     }
 
-    var entryName = (zipEntry?.Name ?? string.Empty) + sourceFile.Name;
+    var entryName = (zipEntry?.Name ?? string.Empty) + Path.GetFileName(sourceFileName);
     var entry = zipArchive.GetEntry(entryName);
 
     CompressionMethod? method = null;
 
     if (entry != null)
     {
-        if (noOverwrite)
+        if (options.NoOverwrite)
         {
             throw new ApplicationException($"Entry {entryName} already exists.");
         }
@@ -143,18 +150,19 @@ void Process(string zipFilePath, string targetPath)
         zipArchive.BeginUpdate();
         zipArchive.Delete(entry);
 
-        Log($"Deleting existing entry {zipFilePath}{zipSeparator}{entry}...");
+        Log($"Deleting existing entry {zipFileName}{zipEntrySeparator}{entry}...");
     }
 
-    Log($"Creating entry {zipFilePath}{zipSeparator}{entryName}...");
+    Log($"Creating entry {zipFileName}{zipEntrySeparator}{entryName}...");
 
     if (method == null)
     {
         try
         {
-            using var testArchive = new ZipFile(sourceFile.FullName);
-            Log("Zip file detected, adding without compression.");
+            using var testArchive = new ZipFile(sourceFileName);
+
             method = CompressionMethod.Stored;
+            Log($"Zip file detected, adding with compression method {method}.");
         }
         catch (Exception)
         {
@@ -171,15 +179,16 @@ void Process(string zipFilePath, string targetPath)
 
     if (method == null)
     {
-        zipArchive.Add(sourceFile.FullName);
+        zipArchive.Add(sourceFileName);
     }
     else
     {
-        zipArchive.Add(sourceFile.FullName, method.Value);
+        zipArchive.Add(sourceFileName, method.Value);
     }
 
     zipArchive.CommitUpdate();
-    Log("Done.");
+
+    indent--;
 }
 
 #region Helpers
@@ -189,6 +198,32 @@ static void ExtractToFile(ZipFile zipFile, ZipEntry entry, string fileName)
     using var inputStream = zipFile.GetInputStream(entry);
     using var outputStream = File.OpenWrite(fileName);
     inputStream.CopyTo(outputStream);
+}
+
+static IEnumerable<string> ResolveFileNames(string filePattern)
+{
+    var directory = Path.GetDirectoryName(filePattern);
+
+    if (string.IsNullOrEmpty(directory))
+    {
+        directory = Directory.GetCurrentDirectory();
+    }
+    
+    var directoryInfo = new DirectoryInfo(directory);
+    if (!directoryInfo.Exists)
+    {
+        throw new DirectoryNotFoundException($"File directory not found: {filePattern}.");
+    }
+
+    var pattern = Path.GetFileName(filePattern);
+    var files = directoryInfo.GetFiles(pattern);
+
+    if (!files.Any())
+    {
+        throw new FileNotFoundException($"File not found: {filePattern}.");
+    }
+
+    return files.Select(f => f.FullName);
 }
 
 internal class SingleNameTransform : INameTransform

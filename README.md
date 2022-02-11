@@ -8,9 +8,9 @@ Copies file to the target zip archive, with nested archives support.
     -v, --verbose           Set output to verbose messages.
     --help                  Display this help screen.
     --version               Display version information.
-    source_file (pos. 0)    Required. Source file to copy.
-    target_file (pos. 1)    Required. Target file to copy to.
-    target_path (pos. 2)    Required. Path within the target file. Use '/' as a separator or as a root path.
+    source_file (pos. 0)    Required. Source file(s) to copy. Can be a wildcard.
+    target_file (pos. 1)    Required. Target file(s) to copy to. Can be a wildcard.
+    target_path (pos. 2)    Required. Path within the target file(s). Use '/' as a separator or as a root path.
 
 Example:
 

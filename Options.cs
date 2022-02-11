@@ -8,10 +8,10 @@ namespace cpzip;
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 internal class Options
 {
-    [Value(0, Required = true, HelpText = "Source file to copy.", MetaName = "source_file")]
+    [Value(0, Required = true, HelpText = "Source file(s) to copy. Can be a wildcard.", MetaName = "source_file")]
     public string SourceFile { get; set; }
 
-    [Value(1, Required = true, HelpText = "Target file to copy to.", MetaName = "target_file")]
+    [Value(1, Required = true, HelpText = "Target file(s) to copy to. Can be a wildcard.", MetaName = "target_file")]
     public string TargetFile { get; set; }
 
     [Value(2, Required = true, HelpText = "Path within the target file. Use '/' as a separator as a separator or as a root path.", MetaName = "target_path")]
